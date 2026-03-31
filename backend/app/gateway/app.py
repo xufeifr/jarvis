@@ -11,6 +11,7 @@ from app.gateway.routers import (
     artifacts,
     assistants_compat,
     channels,
+    factory,
     mcp,
     memory,
     models,
@@ -157,6 +158,10 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
                 "description": "LangGraph Platform-compatible runs lifecycle (create, stream, cancel)",
             },
             {
+                "name": "factory",
+                "description": "Digital Worker Factory — five-step AI agent production pipeline",
+            },
+            {
                 "name": "health",
                 "description": "Health check and system status endpoints",
             },
@@ -204,6 +209,9 @@ This gateway provides custom endpoints for models, MCP configuration, skills, an
 
     # Stateless Runs API (stream/wait without a pre-existing thread)
     app.include_router(runs.router)
+
+    # Factory API is mounted at /api/factory
+    app.include_router(factory.router)
 
     @app.get("/health", tags=["health"])
     async def health_check() -> dict:

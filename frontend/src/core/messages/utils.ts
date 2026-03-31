@@ -134,7 +134,10 @@ export function extractTextFromMessage(message: Message) {
   }
   if (Array.isArray(message.content)) {
     return message.content
-      .map((content) => (content.type === "text" ? content.text : ""))
+      .map((content) => {
+        if (typeof content === "string") return content;
+        return content.type === "text" ? content.text : "";
+      })
       .join("\n")
       .trim();
   }
@@ -178,6 +181,7 @@ export function extractContentFromMessage(message: Message) {
   if (Array.isArray(message.content)) {
     return message.content
       .map((content) => {
+        if (typeof content === "string") return content;
         switch (content.type) {
           case "text":
             return content.text;
@@ -284,6 +288,44 @@ export function hasPresentFiles(message: Message) {
 
 export function isClarificationToolMessage(message: Message) {
   return message.type === "tool" && message.name === "ask_clarification";
+}
+
+export interface ClarificationArgs {
+  question: string;
+  clarification_type?: string;
+  context?: string;
+  options?: string[];
+}
+
+/**
+ * Extract ask_clarification tool call args from the AI message that triggered
+ * the given tool message (matched by tool_call_id).
+ */
+export function extractClarificationArgs(
+  toolMessage: Message,
+  messages: Message[],
+): ClarificationArgs | null {
+  const toolCallId =
+    toolMessage.type === "tool" ? toolMessage.tool_call_id : undefined;
+  if (!toolCallId) return null;
+
+  for (const msg of messages) {
+    if (msg.type === "ai" && msg.tool_calls) {
+      for (const tc of msg.tool_calls) {
+        if (tc.id === toolCallId && tc.name === "ask_clarification") {
+          return {
+            question: (tc.args.question as string) ?? "",
+            clarification_type: tc.args.clarification_type as string | undefined,
+            context: tc.args.context as string | undefined,
+            options: Array.isArray(tc.args.options)
+              ? (tc.args.options as string[])
+              : undefined,
+          };
+        }
+      }
+    }
+  }
+  return null;
 }
 
 export function extractPresentFilesFromMessage(message: Message) {

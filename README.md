@@ -534,6 +534,18 @@ Across sessions, DeerFlow builds a persistent memory of your profile, preference
 
 Memory updates now skip duplicate fact entries at apply time, so repeated preferences and context do not accumulate endlessly across sessions.
 
+### Digital Worker Factory
+
+DeerFlow includes a five-step production pipeline for creating, testing, and onboarding specialized AI agent "digital workers":
+
+1. **Job Description**: Define the role with structured inputs, outputs, permissions, quality bars, and scenarios.
+2. **Capability Analysis**: LLM automatically decomposes the job into hard skills, soft skills, and red-line awareness items.
+3. **Agent Assembly**: Generates a fully configured agent (SOUL.md + config.yaml) from the job description and capability matrix.
+4. **Exam**: An examiner agent generates test cases (routine, edge-case, red-line), the worker answers, and a judge agent scores across six dimensions (judgment accuracy, reasoning quality, reply quality, tool usage, boundary awareness, safety compliance).
+5. **Onboarding**: Workers progress through levels L0-L6 based on exam results and production performance metrics.
+
+The factory is available via REST API at `/api/factory/` and supports one-click creation (`POST /api/factory/create`) or step-by-step execution for fine-grained control.
+
 ## Recommended Models
 
 DeerFlow is model-agnostic — it works with any LLM that implements the OpenAI-compatible API. That said, it performs best with models that support:

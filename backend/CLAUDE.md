@@ -46,13 +46,14 @@ deer-flow/
 │   │           ├── skills/            # Skills discovery, loading, parsing
 │   │           ├── config/            # Configuration system (app, model, sandbox, tool, etc.)
 │   │           ├── community/         # Community tools (tavily, jina_ai, firecrawl, image_search, aio_sandbox)
+│   │           ├── factory/            # Digital Worker Factory (5-step production pipeline)
 │   │           ├── reflection/        # Dynamic module loading (resolve_variable, resolve_class)
 │   │           ├── utils/             # Utilities (network, readability)
 │   │           └── client.py          # Embedded Python client (DeerFlowClient)
 │   ├── app/                   # Application layer (import: app.*)
 │   │   ├── gateway/           # FastAPI Gateway API
 │   │   │   ├── app.py         # FastAPI application
-│   │   │   └── routers/       # FastAPI route modules (models, mcp, memory, skills, uploads, threads, artifacts, agents, suggestions, channels)
+│   │   │   └── routers/       # FastAPI route modules (models, mcp, memory, skills, uploads, threads, artifacts, agents, suggestions, channels, factory)
 │   │   └── channels/          # IM platform integrations
 │   ├── tests/                 # Test suite
 │   └── docs/                  # Documentation
@@ -210,6 +211,7 @@ FastAPI application on port 8001 with health check at `GET /health`.
 | **Threads** (`/api/threads/{id}`) | `DELETE /` - remove DeerFlow-managed local thread data after LangGraph thread deletion; unexpected failures are logged server-side and return a generic 500 detail |
 | **Artifacts** (`/api/threads/{id}/artifacts`) | `GET /{path}` - serve artifacts; active content types (`text/html`, `application/xhtml+xml`, `image/svg+xml`) are always forced as download attachments to reduce XSS risk; `?download=true` still forces download for other file types |
 | **Suggestions** (`/api/threads/{id}/suggestions`) | `POST /` - generate follow-up questions; rich list/block model content is normalized before JSON parsing |
+| **Factory** (`/api/factory`) | `GET/POST /jobs` - list/create jobs; `GET/DELETE /jobs/{id}` - job details/delete; `POST /jobs/{id}/analyze` - capability analysis; `POST /jobs/{id}/assemble` - agent assembly; `GET /workers` - list workers; `GET /workers/{id}` - worker status; `POST /workers/{id}/exam` - run exam; `GET /workers/{id}/exam/{eid}` - exam result; `POST /workers/{id}/rework` - rework failed worker; `POST /workers/{id}/promote` - manual promotion; `POST /create` - full 5-step pipeline |
 
 Proxied through nginx: `/api/langgraph/*` → LangGraph, all other `/api/*` → Gateway.
 
@@ -320,6 +322,31 @@ Bridges external messaging platforms (Feishu, Slack, Telegram) to the DeerFlow a
 - `gateway_url` - Gateway API URL for auxiliary commands (default: `http://localhost:8001`)
 - In Docker Compose, IM channels run inside the `gateway` container, so `localhost` points back to that container. Use `http://langgraph:2024` / `http://gateway:8001`, or set `DEER_FLOW_CHANNELS_LANGGRAPH_URL` / `DEER_FLOW_CHANNELS_GATEWAY_URL`.
 - Per-channel configs: `feishu` (app_id, app_secret), `slack` (bot_token, app_token), `telegram` (bot_token)
+
+### Digital Worker Factory (`packages/harness/deerflow/factory/`)
+
+Five-step production pipeline for creating, testing, and onboarding AI agent "digital workers":
+
+**Pipeline Steps**:
+1. **Job Description** (岗位说明书): Define job via `JobDescription` schema → YAML storage
+2. **Capability Analysis** (能力拆解): LLM analyzes JD → `CapabilityMatrix` (hard/soft/red-line skills)
+3. **Agent Assembly** (定向装配): JD + capabilities → Agent config + SOUL.md → L1
+4. **Exam** (实战考核): Examiner generates cases → Worker answers → Judge scores → L3 or rework
+5. **Onboarding** (上岗): L0-L6 state machine with promotion rules
+
+**Components**:
+- `models.py` — 17 Pydantic models for JD, capabilities, exams, workers
+- `job_store.py` — YAML CRUD at `.deer-flow/factory/jobs/`
+- `assembler.py` — `CapabilityAnalyzer` + `AgentAssembler` (LLM-powered)
+- `examiner.py` — `Examiner` generates exam cases, plays scenario counterpart
+- `judge.py` — `Judge` scores on 6 dimensions (judgment 35%, reasoning 20%, reply 15%, tools 10%, boundary 10%, safety 10%)
+- `exam_runner.py` — `ExamRunner` orchestrates examiner→worker→judge flow
+- `onboarding.py` — `OnboardingManager` manages L0→L6 promotions and case tracking
+- `factory.py` — `DigitalWorkerFactory` unifies all 5 steps with rework loop (max 3 rounds)
+
+**Data Storage**: `.deer-flow/factory/{jobs,exams,workers}/`
+
+**Gateway API**: 13 endpoints at `/api/factory/` — see router table above
 
 ### Memory System (`packages/harness/deerflow/agents/memory/`)
 

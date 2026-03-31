@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { ArtifactFileList } from "../artifacts/artifact-file-list";
 import { StreamingIndicator } from "../streaming-indicator";
 
+import { ClarificationMessage } from "./clarification-message";
 import { MarkdownContent } from "./markdown-content";
 import { MessageGroup } from "./message-group";
 import { MessageListItem } from "./message-list-item";
@@ -65,17 +66,16 @@ export function MessageList({
             });
           } else if (group.type === "assistant:clarification") {
             const message = group.messages[0];
-            if (message && hasContent(message)) {
-              return (
-                <MarkdownContent
-                  key={group.id}
-                  content={extractContentFromMessage(message)}
-                  isLoading={thread.isLoading}
-                  rehypePlugins={rehypePlugins}
-                />
-              );
-            }
-            return null;
+            if (!message) return null;
+            return (
+              <ClarificationMessage
+                key={group.id}
+                toolMessage={message}
+                messages={messages}
+                isLoading={thread.isLoading}
+                rehypePlugins={rehypePlugins}
+              />
+            );
           } else if (group.type === "assistant:present-files") {
             const files: string[] = [];
             for (const message of group.messages) {
